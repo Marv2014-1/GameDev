@@ -1,0 +1,1 @@
+The .gitignore fole should be copied to the root of every unity root for uploading to github
