@@ -45,7 +45,7 @@ public class CarController : MonoBehaviour
         }
 
         // Set velocity
-        Vector3 movement = new Vector3(shiftSideways, 0f, moveForward);
-        rb.velocity = movement;
+        Vector3 movement = Vector3.forward * moveForward;
+        rb.AddForce(movement);
     }
 }
