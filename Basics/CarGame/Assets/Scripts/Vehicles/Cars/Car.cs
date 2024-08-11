@@ -11,12 +11,18 @@ public class Car : MonoBehaviour
     public float maxSpeed = 50f;
     protected float currentAcceleration = 0f;
     protected float currentBrakeForce = 0f;
+    public float decelerationFactor = 0.01f; // Further adjust this factor for more gradual deceleration
 
     // Wheels
     [SerializeField] protected WheelCollider frontRight;
     [SerializeField] protected WheelCollider backRight;
     [SerializeField] protected WheelCollider frontLeft;
     [SerializeField] protected WheelCollider backLeft;
+
+    // Sound Effects
+    public AudioSource idleSource;
+    public AudioSource accelerationSource;
+    public AudioSource decelerationSource;
 
     // Get input for movement
     protected float moveInput;
@@ -29,6 +35,13 @@ public class Car : MonoBehaviour
         rb.velocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         rb.centerOfMass = new Vector3(0f, -0.5f, 0f);
+
+        // Start idle sound
+        if (idleSource != null)
+        {
+            idleSource.loop = true;
+            idleSource.Play();
+        }
     }
 
     private void Update()
@@ -36,6 +49,9 @@ public class Car : MonoBehaviour
         // Get user input
         moveInput = Input.GetAxis("Vertical");
         veerInput = Input.GetAxis("Horizontal");
+
+        // Update sound effects based on velocity
+        UpdateSoundEffects();
     }
 
     // FixedUpdate is called once per physics update
@@ -43,6 +59,7 @@ public class Car : MonoBehaviour
     {
         HandleMovement();
         HandleVeering();
+        ApplyDeceleration(); // Apply deceleration when no acceleration input
         AlignVelocityWithForward();
     }
 
@@ -59,14 +76,24 @@ public class Car : MonoBehaviour
         else
         {
             ResetBrakesAndAcceleration();
+            ApplyWheelFriction(); // Adjust wheel friction when not accelerating or braking
         }
     }
 
     protected void HandleVeering()
     {
         // Apply veering force directly to the rigidbody for simple lane merging
-        Vector3 veerDirection = transform.right * veerInput * veerForce;
-        rb.AddForce(veerDirection, ForceMode.Acceleration);
+        if (moveInput != 0f)
+        {
+            Vector3 veerDirection = transform.right * veerInput * veerForce;
+            rb.AddForce(veerDirection, ForceMode.Acceleration);
+        }
+        else
+        {
+            // Apply veering without affecting forward velocity
+            Vector3 veerDirection = transform.right * veerInput * veerForce;
+            rb.AddForce(veerDirection - transform.forward * Vector3.Dot(rb.velocity, transform.forward), ForceMode.Acceleration);
+        }
     }
 
     protected void Accelerate()
@@ -124,9 +151,89 @@ public class Car : MonoBehaviour
         backLeft.brakeTorque = 0f;
     }
 
+    protected void ApplyDeceleration()
+    {
+        if (moveInput == 0f)
+        {
+            // Apply deceleration proportional to the car's mass
+            float deceleration = (decelerationFactor / rb.mass) * Time.fixedDeltaTime;
+            rb.velocity = Vector3.MoveTowards(rb.velocity, Vector3.zero, deceleration);
+        }
+    }
+
+    protected void ApplyWheelFriction()
+    {
+        WheelFrictionCurve forwardFriction = new WheelFrictionCurve();
+        WheelFrictionCurve sidewaysFriction = new WheelFrictionCurve();
+
+        forwardFriction.extremumSlip = 1f;
+        forwardFriction.extremumValue = 1f;
+        forwardFriction.asymptoteSlip = 1f;
+        forwardFriction.asymptoteValue = 1f;
+        forwardFriction.stiffness = 0.5f; // Adjust the stiffness value to control friction
+
+        sidewaysFriction.extremumSlip = 1f;
+        sidewaysFriction.extremumValue = 1f;
+        sidewaysFriction.asymptoteSlip = 1f;
+        sidewaysFriction.asymptoteValue = 1f;
+        sidewaysFriction.stiffness = 0.5f; // Adjust the stiffness value to control friction
+
+        frontRight.forwardFriction = forwardFriction;
+        frontRight.sidewaysFriction = sidewaysFriction;
+        backRight.forwardFriction = forwardFriction;
+        backRight.sidewaysFriction = sidewaysFriction;
+        frontLeft.forwardFriction = forwardFriction;
+        frontLeft.sidewaysFriction = sidewaysFriction;
+        backLeft.forwardFriction = forwardFriction;
+        backLeft.sidewaysFriction = sidewaysFriction;
+    }
+
     protected void AlignVelocityWithForward()
     {
         // Ensure the car's velocity is always aligned with its forward direction
         rb.velocity = transform.forward * rb.velocity.magnitude;
+    }
+
+    protected void UpdateSoundEffects()
+    {
+        float speed = rb.velocity.magnitude;
+        float normalizedSpeed = speed / maxSpeed;
+
+        if (moveInput > 0f)
+        {
+            if (!accelerationSource.isPlaying)
+            {
+                accelerationSource.loop = true;
+                accelerationSource.Play();
+                decelerationSource.Stop();
+                idleSource.Stop();
+            }
+            accelerationSource.pitch = Mathf.Lerp(2f, 3f, normalizedSpeed);
+            accelerationSource.volume = Mathf.Lerp(0.5f, 1f, normalizedSpeed);
+        }
+        else if (moveInput < 0f)
+        {
+            if (!decelerationSource.isPlaying)
+            {
+                decelerationSource.loop = true;
+                decelerationSource.Play();
+                accelerationSource.Stop();
+                idleSource.Stop();
+            }
+            decelerationSource.pitch = Mathf.Lerp(2f, 3f, normalizedSpeed);
+            decelerationSource.volume = Mathf.Lerp(0.5f, 1f, normalizedSpeed);
+        }
+        else
+        {
+            if (!idleSource.isPlaying)
+            {
+                idleSource.loop = true;
+                idleSource.Play();
+                accelerationSource.Stop();
+                decelerationSource.Stop();
+            }
+            idleSource.pitch = Mathf.Lerp(2f, 3f, normalizedSpeed);
+            idleSource.volume = Mathf.Lerp(0.5f, 1f, normalizedSpeed);
+        }
     }
 }
