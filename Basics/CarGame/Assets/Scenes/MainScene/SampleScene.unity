@@ -451,8 +451,16 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4060789624428788072, guid: 3a5629e99f3ff724892fea4416158aff, type: 3}
+      propertyPath: maxSpeed
+      value: 1000
+      objectReference: {fileID: 0}
+    - target: {fileID: 4060789624428788072, guid: 3a5629e99f3ff724892fea4416158aff, type: 3}
+      propertyPath: jumpForce
+      value: 200000
+      objectReference: {fileID: 0}
+    - target: {fileID: 4060789624428788072, guid: 3a5629e99f3ff724892fea4416158aff, type: 3}
       propertyPath: veerForce
-      value: 30
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 4060789624428788072, guid: 3a5629e99f3ff724892fea4416158aff, type: 3}
       propertyPath: idleSource

@@ -13,6 +13,13 @@ public class Car : MonoBehaviour
     protected float currentBrakeForce = 0f;
     public float decelerationFactor = 0.01f; // Further adjust this factor for more gradual deceleration
 
+    public Vector3 jump;
+    public float jumpForce = 2.0f;
+    public bool isGrounded;
+
+    public float flipSpeed = 360f; // Degrees per second
+    private bool isFlipping = false;
+    private int flipDuration;
     // Wheels
     [SerializeField] protected WheelCollider frontRight;
     [SerializeField] protected WheelCollider backRight;
@@ -36,11 +43,22 @@ public class Car : MonoBehaviour
         rb.angularVelocity = Vector3.zero;
         rb.centerOfMass = new Vector3(0f, -0.5f, 0f);
 
+        jump = new Vector3(0.0f, 2.0f, 0.0f);
+
+        flipDuration = 40;
+
         // Start idle sound
         if (idleSource != null)
         {
             idleSource.loop = true;
             idleSource.Play();
+        }
+    }
+
+    void OnCollisionStay(Collision collision){
+        if(collision.gameObject.tag == ("road") || transform.position.y < 1.5f)
+        {
+            isGrounded = true;
         }
     }
 
@@ -52,15 +70,48 @@ public class Car : MonoBehaviour
 
         // Update sound effects based on velocity
         UpdateSoundEffects();
+
+        if(Input.GetKeyDown(KeyCode.Space) && isGrounded){
+            rb.AddForce(jump * jumpForce);
+            isGrounded = false;
+        }
+
+        if (!isGrounded && transform.position.y > 1.5f)
+        {
+            isFlipping = true;
+        }
     }
 
     // FixedUpdate is called once per physics update
     private void FixedUpdate()
     {
         HandleMovement();
-        HandleVeering();
         ApplyDeceleration(); // Apply deceleration when no acceleration input
-        AlignVelocityWithForward();
+        if (isGrounded)
+        {
+            HandleVeering();
+            AlignVelocityWithForward();
+        }
+
+        if (isFlipping)
+        {
+            PerformFlip();
+        }
+    }
+
+    private void PerformFlip()
+    {
+        // Rotate the object around its X axis
+        transform.Rotate(Vector3.right, flipSpeed * Time.deltaTime);
+        flipDuration -= 1;
+
+        // Optionally, stop flipping after a certain angle is reached (e.g., 360 degrees)
+        if (flipDuration <= 0)
+        {
+            isFlipping = false;
+            transform.rotation = Quaternion.Euler(0, 0, 0); // Reset to upright position
+            flipDuration = 40;
+        }
     }
 
     protected void HandleMovement()
@@ -86,13 +137,19 @@ public class Car : MonoBehaviour
         if (moveInput != 0f)
         {
             Vector3 veerDirection = transform.right * veerInput * veerForce;
-            rb.AddForce(veerDirection, ForceMode.Acceleration);
+            if (!(((transform.position.x < -2.5f) && (veerInput < 0)) || ((transform.position.x > 2.5f) && (veerInput > 0))))
+            {
+                rb.AddForce(veerDirection, ForceMode.Acceleration);
+            }
         }
         else
         {
             // Apply veering without affecting forward velocity
             Vector3 veerDirection = transform.right * veerInput * veerForce;
-            rb.AddForce(veerDirection - transform.forward * Vector3.Dot(rb.velocity, transform.forward), ForceMode.Acceleration);
+            if (!(((transform.position.x < -2.5f) && (veerInput < 0)) || ((transform.position.x > 2.5f) && (veerInput > 0))))
+            {
+                rb.AddForce(veerDirection - transform.forward * Vector3.Dot(rb.velocity, transform.forward), ForceMode.Acceleration);
+            }
         }
     }
 
